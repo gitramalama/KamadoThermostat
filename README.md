@@ -39,8 +39,8 @@ Set and maintain the temperature of a Kamado-style cooker
 
 ### 1. Clone this repo
 ```bash
-git clone https://github.com/ramalama137/KamadoThermostatController.git
-cd KamadoThermostatController
+git clone https://github.com/gitramalama/KamadoThermostat.git
+cd KamadoThermostat
 ```
 ### 2. Wiring
 #### A. Fan and MOSFET
