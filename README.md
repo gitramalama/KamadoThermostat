@@ -97,4 +97,7 @@ pin on microcontroller)
 
 ### 5. LEDs (other than the LED matrix)
     - The built-in LED acts as a system heartbeat indicator
-    - An external LED flashes to indicate the controller is in AUTO mode
+####- External LED
+      * flashes to indicate the setpoint is being processed
+      * steady to indicate the thermostat is in AUTO mode
+      * off to indicate the thermostat is in MANUAL mode
