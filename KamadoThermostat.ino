@@ -3,7 +3,7 @@
 
 // pins
 #define PB_PIN 0           // Digital pin for reading pushbutton (INPUT); orange
-#define AUTOLED_PIN 1      // Digital pin for LED (OUTPUT); yellow
+#define LEDEXTERNAL_PIN 1  // Digital pin for LED (OUTPUT); yellow
 #define FAN_PIN 3          // PWM pin for controlling 12V fan via MOSFET (OUTPUT); green
 #define THERMISTOR_PIN A0  // Analog pin for thermistor (INPUT); blue
 #define POT_PIN A1         // Analog pin for potentiometer (INPUT); purple
@@ -32,7 +32,7 @@ byte nPulse = 0;               // pulse counter within a cycle
 unsigned int pwmFan;
 float fahrDeltaWas = 0.0;
 float iPID = 0;
-bool isAUTOLEDon;
+bool isLEDEXTERNALon;
 bool isLEDBUILTINon;
 unsigned long frameWas[3];  // storage of LED matrix frame
 
@@ -48,15 +48,15 @@ void setup() {
   button.interval(5);           // ms
   button.setPressedState(LOW);  // low corresponds to internal pullup resistor
 
-  pinMode(AUTOLED_PIN, OUTPUT);    // setup of auto mode LED
-  pinMode(FAN_PIN, OUTPUT);        // setup of fan via MOSFET
-  pinMode(THERMISTOR_PIN, INPUT);  // thermistor setup
-  pinMode(POT_PIN, INPUT);         // potentiometer setup
-  pinMode(LED_BUILTIN, OUTPUT);    // setup of builtin LED; blinks as a system heartbeat, independent of manual/auto modes
+  pinMode(LEDEXTERNAL_PIN, OUTPUT);  // setup of external LED
+  pinMode(FAN_PIN, OUTPUT);          // setup of fan via MOSFET
+  pinMode(THERMISTOR_PIN, INPUT);    // thermistor setup
+  pinMode(POT_PIN, INPUT);           // potentiometer setup
+  pinMode(LED_BUILTIN, OUTPUT);      // setup of builtin LED; blinks as a system heartbeat, independent of manual/auto modes
 
-  // turn off auto mode LED
-  isAUTOLEDon = 0;
-  digitalWrite(AUTOLED_PIN, isAUTOLEDon);
+  // turn off external LED
+  isLEDEXTERNALon = 0;
+  digitalWrite(LEDEXTERNAL_PIN, isLEDEXTERNALon);
 
   matrix.begin();  // setup of LED matrix
 }
@@ -137,12 +137,9 @@ void loop() {
     if (isSetpointEstablished) {
       // setpoint established; AUTO MODE!
 
-      // check... time to blink/update lights?
-      if (isTimeToBlink) {
-        // time to blink auto mode LED
-        isAUTOLEDon ^= 1;
-        digitalWrite(AUTOLED_PIN, isAUTOLEDon);
-      }
+      // turn on external LED
+      isLEDEXTERNALon = true;
+      digitalWrite(LEDEXTERNAL_PIN, isLEDEXTERNALon);
 
       // check... time for a PID round?
       if (nPulse == PULSES_PER_CYCLE) {
@@ -185,6 +182,13 @@ void loop() {
     } else {
       // temperature setpoint is NOT established; establish setpoint
 
+      // check... time to blink/update lights?
+      if (isTimeToBlink) {
+        // time to blink external LED
+        isLEDEXTERNALon ^= 1;
+        digitalWrite(LEDEXTERNAL_PIN, isLEDEXTERNALon);
+      }
+
       // fan control while establishing temperature setpoint
       pwmFan = 25;
       analogWrite(FAN_PIN, pwmFan);
@@ -199,16 +203,16 @@ void loop() {
     }
   } else {
     // PB is currently NOT pressed; MANUAL MODE!
+
+    // turn off external LED
+    isLEDEXTERNALon = false;
+    digitalWrite(LEDEXTERNAL_PIN, isLEDEXTERNALon);
+
     pwmFan = map(analogRead(POT_PIN), 0, 1023, 0, 255);
     analogWrite(FAN_PIN, pwmFan);  // send pwm signal to 12V fan via MOSFET
     isSetpointEstablished = false;
     resetPID();  // initialize PID function
     nPulse = 0;  // reset pulse counter
-
-    // turn off auto mode LED
-    isAUTOLEDon = 0;
-    digitalWrite(AUTOLED_PIN, isAUTOLEDon);
-  }
 
   // check... time to blink/update lights
   if (isTimeToBlink) {
@@ -216,7 +220,7 @@ void loop() {
 
     // variables for matrix update
     const float fahrIndex = pow(15.0, 1.0 / 6.0);  // sets full needle deflection to +/- 15 degF
-    unsigned long indicesOnly[2] = { 0b110000000000000000000000000, 0b11000000000000000000000 };
+    unsigned long setpointIndexOnly[2] = { 0b110000000000000000000000000, 0b11000000000000000000000 };
     unsigned long matrixOn[2];
     unsigned long matrixOff[2];
     unsigned long frame[3] = { 0, 0, 0 };
@@ -224,13 +228,13 @@ void loop() {
 
     // check... in auto mode?
     if (isPBpressed && isSetpointEstablished) {
-      // auto mode; build matrix frame for temperature indications
+      // auto mode; establish matrix on/off states based on deviation of actual temperature from setpoint
       for (byte i = 0; i < 15; i++) {
         if (i == 0) {
           matrixOn[0] = 0b110000000000110000000000110;
-          matrixOn[1] = indicesOnly[1];
-          matrixOff[0] = indicesOnly[0];
-          matrixOff[1] = indicesOnly[1];
+          matrixOn[1] = setpointIndexOnly[1];
+          matrixOff[0] = setpointIndexOnly[0];
+          matrixOff[1] = setpointIndexOnly[1];
           if (abs(fahrDelta) < 1.0) {
             break;
           }
@@ -241,8 +245,8 @@ void loop() {
           }
         } else if (i < 7) {
           matrixOn[0] <<= 1;          // bit shift left one bit
-          matrixOn[0] &= ~(1 << 27);  // clears 27th bit
-          matrixOn[0] |= (1 << 25);   // sets 25th bit
+          matrixOn[0] &= ~(1 << 27);  // clear 27th bit
+          matrixOn[0] |= (1 << 25);   // set 25th bit
           if (fahrDelta > 0 && fahrDelta < pow(fahrIndex, i)) {
             break;
           }
@@ -256,9 +260,9 @@ void loop() {
           }
         } else if (i == 8) {
           matrixOn[0] = 0b110000000000010000000000010;
-          matrixOn[1] = indicesOnly[1];
-          matrixOff[0] = indicesOnly[0];
-          matrixOff[1] = indicesOnly[1];
+          matrixOn[1] = setpointIndexOnly[1];
+          matrixOff[0] = setpointIndexOnly[0];
+          matrixOff[1] = setpointIndexOnly[1];
           if (fahrDelta < 0 && abs(fahrDelta) < pow(fahrIndex, i - 7)) {
             break;
           }
@@ -296,14 +300,14 @@ void loop() {
       matrixOff[1] = 0;
     }
 
-    // check... was matrix on at same state as current state?
+    // check... was matrix on at same state as matrix on state?
     if (frameWas[0] == matrixOn[0] && frameWas[1] == matrixOn[1]) {
-      // matrix was on at same state; set matrix off
+      // matrix was on at current matrix on state; set matrix off
       for (byte i = 0; i < 2; i++) {
         frame[i] = matrixOff[i];
       }
     } else {
-      // matrix was not on at same state; set matrix on
+      // matrix was not on at current matrix on state; set matrix on
       for (byte i = 0; i < 2; i++) {
         frame[i] = matrixOn[i];
       }

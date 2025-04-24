@@ -96,8 +96,8 @@ pin on microcontroller)
     Full scale deflection of the temperature represents +/- 15 degF from setpoint.
 
 ### 5. LEDs (other than the LED matrix)
-    - The built-in LED acts as a system heartbeat indicator
-####- External LED
-      * flashes to indicate the setpoint is being processed
-      * steady to indicate the thermostat is in AUTO mode
-      * off to indicate the thermostat is in MANUAL mode
+    - The built-in LED indicates system heartbeat
+####  External LED
+      * blinks ON/OFF to indicate the setpoint is being processed
+      * illuminates ON steady to indicate the thermostat is in AUTO mode
+      * is OFF when the thermostat is in MANUAL mode
