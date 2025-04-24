@@ -18,8 +18,8 @@ Set and maintain the temperature of a Kamado-style cooker
 - Honeywell 135-103LAG-J01 thermistor
 - IRFZ44N MOSFET
 - 1N4007 diode
-- 10K Ohm resistor
-- 220 Ohm resistor
+- 10KΩ resistor
+- 220Ω resistor
 - WDERAIR WD1232DB 12V fan
 - 2 inch ducting
 - LED
