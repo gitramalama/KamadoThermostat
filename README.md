@@ -4,10 +4,25 @@ Set and maintain the temperature of a Kamado-style cooker
 
 ---
 
-## 📦 Features
-- Temperature controlled by forced induction (12V fan via MOSFET)
-- Auto mode maintains a set temperature
-- Manual mode allows modification of the setpoint by manual control of the fan
+## 📦 Concept of operation and features
+- Fire up your cooker
+- During and after ignition and after loading the furnace with fuel and otherwise configuring the cooker, the oven temperature is controlled by forced induction via a 12VDC fan, MOSFET and microcontroller
+- Check thermostat manual mode. Manual mode...
+  - ... is commanded using the pushbutton: out (not pressed/latched) commands manual mode
+  - ... is indicated by the external LED: extinguished indicates manual mode
+- Adjust oven temperature
+  - In manual mode, fan speed and temperature are controlled by the potentiometer
+  - Increase fan speed to increase the oven temperature
+- Monitor oven temperature using the thermometer that is independent of the thermostat
+- When desired temperature achieved, command auto mode. Auto mode...
+  - ... commanded by pressing and latching the pushbutton
+  - ... indicated by the external LED: on steady
+  - ... will maintain that set temperature
+- There is an LED grid/matrix organic to the Arduino microcontroller. The LED matrix...
+  - ... is designed to give the user some feedback on the performance of the thermostat. For example, if - in order to maintain the set temperature - the fan remains at or near full speed, consider incrementally opening the top vent. Conversely, if the temperature is too hot and the thermostat is unable to effectively reduce it, consider incrementally closing the top vent.
+  - ... in manual or auto mode: indicates fan speed along the bottom two rows of the Arduino's LED matrix
+  - ... in auto mode: indicates actual temperature relative to the set temperature
+- Setting mode enages when the thermostat is commanded from manual mode to auto mode and disengages automatically based on time (approximately ten seconds). Auto mode engages immediately upon completion of setting mode. Setting mode is indicated by the external LED, which will blink.
 
 ---
 
@@ -18,7 +33,8 @@ Set and maintain the temperature of a Kamado-style cooker
 - Honeywell 135-103LAG-J01 thermistor
 - IRFZ44N MOSFET
 - 1N4007 diode
-- 10KΩ resistor
+- 2 x 10KΩ resistor
+- 470Ω resistor
 - 220Ω resistor
 - WDERAIR WD1232DB 12V fan
 - 2 inch ducting
@@ -29,7 +45,7 @@ Set and maintain the temperature of a Kamado-style cooker
 
 ### Dpendencies
 - Kamado-style cooker
-- Thermometer (independent of the thermostat and thermistor). Mine is organic to my Kamado Joe cooker.
+- Thermometer, independent of the thermostat and thermistor (e.g., the one organic to most Kamado-style cookers)
 
 ---
 
@@ -43,34 +59,58 @@ Set and maintain the temperature of a Kamado-style cooker
 
 ## 🚀 Getting Started
 
-### 1. Repository: https://github.com/gitramalama/KamadoThermostat.git
+### 1. Repository
+https://github.com/gitramalama/KamadoThermostat.git
 
 ### 2. Wiring
 #### A. Fan and MOSFET
 ```
 gMOSFET----------------sMOSFET---dMOSFET             12V(+)
   |                       |         |                  |
-  |----[10KΩ Resistor]----|         |-[1N4007 diode||]-|
+  |----[10KΩ resistor]----|         |-[1N4007 diode||]-|
   |                       |         |                  |
-[220Ω Resistor]          GND      Fan(-)             Fan(+)
+[470Ω resistor]          GND      Fan(-)             Fan(+)
   |
 (appropriate PWM    
 pin on microcontroller)
 ```
-
 || on the diode represents the cathode
 
 #### B. Thermistor
 ```
  5V(+)
-  |
-[10KΩ Resistor]
-  |
-  |-----> (appropriate analog pin on microcontroller)
-  |
-[Thermistor]
-  |
-(GND)
+   |
+[10KΩ resistor]
+   |
+   |--> (appropriate analog pin on microcontroller)
+   |
+[thermistor]
+   |
+  GND
+```
+
+#### C. Pushbutton, leveraging the microcontroller's input pullup resistor
+```
+(appropriate digital pin on microcontroller)
+ |
+[pushbutton]
+ |
+GND
+```
+
+#### D. External LED
+```
+(appropriate digital pin on microcontroller)
+    |
+[220Ω resistor]
+    |
+ -------
+| anode |
+|  LED  |
+|cathode|
+ ------
+   |
+  GND
 ```
 
 ### 3. Latching pushbutton is handled using the Bounce2 library. Relevant methods and elements:
@@ -105,6 +145,6 @@ Full scale deflection of the temperature represents +/- 15 degF from setpoint.
 ### 5. LEDs (other than the LED matrix)
 #### The built-in LED indicates system heartbeat
 #### External LED
-- blinks ON/OFF to indicate the setpoint is being processed
-- illuminates ON steady to indicate the thermostat is in AUTO mode
-- is OFF when the thermostat is in MANUAL mode
+- blinking ON/OFF indicates the setpoint is being processed
+- ON steady indicates the thermostat is in AUTO mode
+- OFF indicates the thermostat is in MANUAL mode
