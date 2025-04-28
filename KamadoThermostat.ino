@@ -21,12 +21,14 @@ ArduinoLEDMatrix matrix;
 
 // global variables
 bool stateLEDBUILTIN;
+bool stateLEDEXTERNAL;
 unsigned long timeLastBlink = 0;
 
 void setup() {
   Serial.begin(9600);
 
   pinMode(LED_BUILTIN, OUTPUT);  // setup of builtin LED
+  pinMode(LEDEXTERNAL_PIN, OUTPUT); // setup of external LED
 }
 
 void loop() {
@@ -45,12 +47,15 @@ void loop() {
     // blink LED builtin
     stateLEDBUILTIN ^= 1;
     digitalWrite(LED_BUILTIN, stateLEDBUILTIN);
+
+    // blink external LED
+    stateLEDEXTERNAL ^= 1;
+    digitalWrite(LEDEXTERNAL_PIN, stateLEDEXTERNAL);
   }
 
   // check... lights flag set?
   if (isTimeToBlink) {
-    // lights blink/update flag is set; reset flag and timer
-    isTimeToBlink = false;
+    // lights blink/update flag is set; reset timer
     timeLastBlink = millis();
   }
 }
