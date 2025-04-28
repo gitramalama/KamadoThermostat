@@ -28,6 +28,8 @@ bool stateLEDEXTERNAL;
 unsigned long timeLastBlink = 0;
 bool statePBwas;
 unsigned long timeLastDebounce = 0;
+int pwmFan;
+unsigned long frameWas[3];  // storage of LED matrix frame
 
 void setup() {
   Serial.begin(9600);
@@ -35,6 +37,9 @@ void setup() {
   pinMode(LED_BUILTIN, OUTPUT);      // setup of builtin LED
   pinMode(LEDEXTERNAL_PIN, OUTPUT);  // setup of external LED
   pinMode(PB_PIN, INPUT_PULLUP);     // setup of pushbutton
+  pinMode(POT_PIN, INPUT);           // setup of potentiometer
+
+  matrix.begin();  // setup of LED matrix
 }
 
 void loop() {
@@ -44,7 +49,9 @@ void loop() {
   bool statePB;
   bool statePBis = digitalRead(PB_PIN);
   bool isPBpressed;
-
+  unsigned long frame[3] = { 0, 0, 0 };
+  byte fanDisplayValue;
+  // debounce the pushbutton
   // check... did the pushbutton remain unchanged?
   if (statePBis == statePBwas) {
     // pushbutton remained unchanged; do nothing
@@ -65,6 +72,21 @@ void loop() {
     digitalWrite(LEDEXTERNAL_PIN, stateLEDEXTERNAL);
   }
 
+  // potentiometer
+  pwmFan = map(analogRead(POT_PIN), 0, 1023, 0, 255);
+  // update LED matrix
+  fanDisplayValue = pwmFan * 96.0 / 256.0;
+  if (fanDisplayValue < 32) {
+    frame[0] ^= (1 << (31 - fanDisplayValue % 32));
+  } else if (fanDisplayValue < 64) {
+    fanDisplayValue -= 32;
+    frame[1] ^= (1 << (31 - fanDisplayValue % 32));
+  } else {
+    fanDisplayValue -= 64;
+    frame[2] ^= (1 << (31 - fanDisplayValue % 32));
+  }
+  matrix.loadFrame(frame);
+
   // check... time to update to lights?
   if (millis() - timeLastBlink > lightsInterval) {
     // time to blink/update lights
@@ -73,6 +95,7 @@ void loop() {
 
   // check... time to blink/update lights?
   if (isTimeToBlink) {
+    // variables
     // blink LED builtin
     stateLEDBUILTIN ^= 1;
     digitalWrite(LED_BUILTIN, stateLEDBUILTIN);
