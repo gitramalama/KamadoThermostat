@@ -51,6 +51,7 @@ void loop() {
   bool isPBpressed;
   unsigned long frame[3] = { 0, 0, 0 };
   byte fanDisplayValue;
+
   // debounce the pushbutton
   // check... did the pushbutton remain unchanged?
   if (statePBis == statePBwas) {
@@ -87,10 +88,10 @@ void loop() {
   }
   matrix.loadFrame(frame);
 
-  // check... time to update to lights?
+  // check... time to blink/update lights?
   if (millis() - timeLastBlink > lightsInterval) {
-    // time to blink/update lights
-    isTimeToBlink = true;  // set flag
+    // time to blink/update lights; set appropriate flag
+    isTimeToBlink = true;
   }
 
   // check... time to blink/update lights?
@@ -101,6 +102,7 @@ void loop() {
     digitalWrite(LED_BUILTIN, stateLEDBUILTIN);
   }
 
+  // reset timers and flags
   // check... lights flag set?
   if (isTimeToBlink) {
     // lights blink/update flag is set; reset timer

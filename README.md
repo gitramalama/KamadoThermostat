@@ -5,24 +5,31 @@ Set and maintain the temperature of a Kamado-style cooker
 ---
 
 ## 📦 Concept of operation and features
-- Fire up your cooker
-- During and after ignition and after loading the furnace with fuel and otherwise configuring the cooker, the oven temperature is controlled by forced induction via a 12VDC fan, MOSFET and microcontroller
-- Check thermostat manual mode. Manual mode...
-  - ... is commanded using the pushbutton: out (not pressed/latched) commands manual mode
-  - ... is indicated by the external LED: extinguished indicates manual mode
-- Adjust oven temperature
-  - In manual mode, fan speed and temperature are controlled by the potentiometer
-  - Increase fan speed to increase the oven temperature
-- Monitor oven temperature using the thermometer that is independent of the thermostat
-- When desired temperature achieved, command auto mode. Auto mode...
-  - ... commanded by pressing and latching the pushbutton
-  - ... indicated by the external LED: on steady
-  - ... will maintain that set temperature
-- There is an LED grid/matrix organic to the Arduino microcontroller. The LED matrix...
-  - ... is designed to give the user some feedback on the performance of the thermostat. For example, if - in order to maintain the set temperature - the fan remains at or near full speed, consider incrementally opening the top vent. Conversely, if the temperature is too hot and the thermostat is unable to effectively reduce it, consider incrementally closing the top vent.
-  - ... in manual or auto mode: indicates fan speed along the bottom two rows of the Arduino's LED matrix
-  - ... in auto mode: indicates actual temperature relative to the set temperature
-- Setting mode enages when the thermostat is commanded from manual mode to auto mode and disengages automatically based on time (approximately ten seconds). Auto mode engages immediately upon completion of setting mode. Setting mode is indicated by the external LED, which will blink.
+
+- Concept of operation. After igniting the furnace, loading the cooker with fuel, configuring racks and deflector plates, as required, instead of controlling the oven's temperature by natural aspiration via manual adjustment the bottom and top air vents, control is by forced induction via a 12VDC fan, MOSFET and microcontroller.
+- Modes of operation
+  - Manual Mode. This mode allows the user direct control of the fan so that the oven temperature can be adjusted to the desired temperature before putting the thermnostat in Auto Mode. Manual Mode also enables setting a different desired temperature. While in Manual Mode and monitoring the oven temperature, use a thermometer that is independent of the thermostat, preferably, the thermometer that is organic to the cooker.
+  - Auto Mode. This mode maintains the desired temperature.
+  - Setting Mode. This mode determines the desired temperature.
+- Mode control. The user controls the thermostat's mode of operation using the latching pushbutton.
+  - OUT/UNLATCHED corresponds to Manual Mode
+  - IN/LATCHED to Auto Mode
+  - When the pushbutton is initially pressed to IN/LATCHED, the thermostat enters Setting Mode. Upon completion of Setting Mode (about ten seconds), the thermostat automatically transitions to Auto Mode.
+- Mode indications. The external LED indicates the mode of operation.
+  - OFF steady: Manual Mode
+  - ON steady: Auto Mode
+  - Blinking ON/OFF: Setting Mode
+- Other controls/indications
+  - Manual Mode fan speed is controlled by the potentiometer
+  - System heartbeat is indicated by the LED organic and built-in to the Arduino microcontroller
+  - Actual temperature relative to desired/set temperature (Auto Mode only). There is a 12x8 LED matrix organic to the Arduino microcontroller. The top four rows are dedicated to indicating the actual temperature relative to the set/desired temperature. If the horizontal center of the 12x8 matrix represents the set/desired temperature, the actual temperature is indicated along the second and third rows from the top. Full scale deflection is equal to +/- 15degF above/below the set/desired temperature. When the actual temperature exceeds full scale deflection, the left-most or right-most LEDs will blink.
+  - Fan speed. The bottom two rows of the LED matrix are dedicated to indicating commanded fan speed. If the commanded fan speed is OFF, the left-most LEDs will blink. If the fan is commanded to full speed the right-most LEDs will blink.
+
+---
+
+## Temperature limit
+
+572&deg;F (300&deg;C)
 
 ---
 
@@ -43,7 +50,7 @@ Set and maintain the temperature of a Kamado-style cooker
 - Latching pushbutton
 - Custom manifold for attaching the 2 inch ducting to the bottom vent of the cooker
 
-### Dpendencies
+### Dependencies
 - Kamado-style cooker
 - Thermometer, independent of the thermostat and thermistor (e.g., the one organic to most Kamado-style cookers)
 
@@ -52,7 +59,6 @@ Set and maintain the temperature of a Kamado-style cooker
 ## 🧑‍💻 Software Dependencies
 - Arduino IDE
 - Libraries used (install via Library Manager):
-  - 'Bounce2'
   - 'Arduino_LED_Matrix'
 
 ---
@@ -113,19 +119,12 @@ GND
   GND
 ```
 
-### 3. Latching pushbutton is handled using the Bounce2 library. Relevant methods and elements:
-- Instantiation as a global object
-- attach()
-- interval() // sets bounce lag time
-- setPressedState([state]) // set to LOW b/c internal pullup resistor invoked
-- update() // once per loop
-
-### 4. LED matrix (organic to Arduino board) is handled using the Arduino_LED_Matrix library. Relevant methods and elements:
+### 3. LED matrix (organic to Arduino board) is handled using the Arduino_LED_Matrix library. Relevant methods and elements:
 - Instantiation as a global object
 - begin() // starts the matrix
 - loadFrame([frame]) // loads the frame and displays it
 ```
-  01 02 03 04 05 06 07 08 09 10 11 12
+   01 02 03 04 05 06 07 08 09 10 11 12
 --+-----------------------------------
 08|31 30 29 28 27[26 25]24 23 22 21 20
 07|19 18 17 16 15[14 13]12 11 10 09 08
@@ -137,14 +136,3 @@ GND
 01|11 10 09 08 07 06 05 04 03 02 01 00
 ```
 Referencing the diagram above, the matrix is a set of 12x8 LEDs. An array of three unsigned long integers were chosen to represent all the LEDs in the matrix. The first element of the array (index 0) represents the top 2-2/3 of the matrix, the second: the middle 2-2/3 and the third: the bottom 2-2/3.
-
-The matrix indicates temperature and commanded fan speed. The top four rows of the matrix are dedicated to indicating temperature relative to the setpoint. The setpoint is represented by the middle two LEDs in the top and the fourth rows of the matrix. The relative temperature of the cooker is indicated by the second and third rows. Commanded fan speed is depicted on the bottom two rows.
-
-Full scale deflection of the temperature represents +/- 15 degF from setpoint.
-
-### 5. LEDs (other than the LED matrix)
-#### The built-in LED indicates system heartbeat
-#### External LED
-- blinking ON/OFF indicates the setpoint is being processed
-- ON steady indicates the thermostat is in AUTO mode
-- OFF indicates the thermostat is in MANUAL mode
