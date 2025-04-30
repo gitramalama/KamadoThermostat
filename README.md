@@ -113,9 +113,9 @@ GND
 | anode |
 |  LED  |
 |cathode|
- ------
-   |
-  GND
+ -------
+    |
+   GND
 ```
 
 ### 3. LED matrix (organic to Arduino board) is handled using the Arduino_LED_Matrix library. Relevant methods and elements:
