@@ -6,15 +6,15 @@ Set and maintain the temperature of a Kamado-style cooker
 
 ## 📦 Concept of operation and features
 
-- Concept of operation. After igniting the furnace, loading the cooker with fuel, configuring racks and deflector plates, as required, instead of controlling the oven's temperature by natural aspiration via manual adjustment the bottom and top air vents, control is by forced induction via a 12VDC fan, MOSFET and microcontroller.
+- Concept of operation. After igniting the furnace, loading the cooker with fuel, configuring racks and deflector plates, as required, instead of controlling the oven's temperature by natural aspiration via manual adjustment of the bottom and top air vents, control is by forced induction via a 12VDC fan, MOSFET and microcontroller.
 - Modes of operation
-  - Manual Mode. This mode allows the user direct control of the fan so that the oven temperature can be adjusted to the desired temperature before putting the thermnostat in Auto Mode. Manual Mode also enables setting a different desired temperature. While in Manual Mode and monitoring the oven temperature, use a thermometer that is independent of the thermostat, preferably, the thermometer that is organic to the cooker.
-  - Auto Mode. This mode maintains the desired temperature.
-  - Setting Mode. This mode determines the desired temperature.
+  - Manual Mode. This mode allows the user direct control of the fan so that the oven temperature can be adjusted to the set/desired temperature before putting the thermostat in Auto Mode. Manual Mode also enables changing the set/desired temperature while cooking. While in Manual Mode and monitoring the oven temperature, use a thermometer that is independent of the thermostat, preferably the thermometer that is organic to the cooker.
+  - Auto Mode. This mode maintains the set/desired temperature.
+  - Setting Mode. This mode determines the set/desired temperature.
 - Mode control. The user controls the thermostat's mode of operation using the latching pushbutton.
   - OUT/UNLATCHED corresponds to Manual Mode
   - IN/LATCHED to Auto Mode
-  - When the pushbutton is initially pressed to IN/LATCHED, the thermostat enters Setting Mode. Upon completion of Setting Mode (about ten seconds), the thermostat automatically transitions to Auto Mode.
+  - When the pushbutton is initially pressed to IN/LATCHED, the thermostat enters Setting Mode. Upon completion of Setting Mode (5-10 seconds), the thermostat automatically transitions to Auto Mode.
 - Mode indications. The external LED indicates the mode of operation.
   - OFF steady: Manual Mode
   - ON steady: Auto Mode
@@ -22,8 +22,8 @@ Set and maintain the temperature of a Kamado-style cooker
 - Other controls/indications
   - Manual Mode fan speed is controlled by the potentiometer
   - System heartbeat is indicated by the LED organic and built-in to the Arduino microcontroller
-  - Actual temperature relative to desired/set temperature (Auto Mode only). There is a 12x8 LED matrix organic to the Arduino microcontroller. The top four rows are dedicated to indicating the actual temperature relative to the set/desired temperature. If the horizontal center of the 12x8 matrix represents the set/desired temperature, the actual temperature is indicated along the second and third rows from the top. Full scale deflection is equal to +/- 15degF above/below the set/desired temperature. When the actual temperature exceeds full scale deflection, the left-most or right-most LEDs will blink.
-  - Fan speed. The bottom two rows of the LED matrix are dedicated to indicating commanded fan speed. If the commanded fan speed is OFF, the left-most LEDs will blink. If the fan is commanded to full speed the right-most LEDs will blink.
+  - Actual temperature relative to set/desired temperature (Auto Mode only). There is a 12x8 LED matrix organic to the Arduino microcontroller. The top four rows are dedicated to indicating the actual temperature relative to the set/desired temperature. The horizontal center of the 12x8 matrix represents the set/desired temperature and the actual temperature is indicated along the second and third rows from the top. Full scale deflection is equal to +/- 15&deg;F above/below the set/desired temperature. When the actual temperature exceeds full scale deflection, the left-most or right-most LEDs will blink.
+  - Fan speed. The bottom two rows of the LED matrix are dedicated to indicating commanded fan speed. If the fan is commanded OFF, the left-most LEDs will blink. If the fan is commanded to full speed the right-most LEDs will blink.
 
 ---
 
@@ -58,8 +58,7 @@ Set and maintain the temperature of a Kamado-style cooker
 
 ## 🧑‍💻 Software Dependencies
 - Arduino IDE
-- Libraries used (install via Library Manager):
-  - 'Arduino_LED_Matrix'
+- 'Arduino_LED_Matrix' library (install via Library Manager)
 
 ---
 
