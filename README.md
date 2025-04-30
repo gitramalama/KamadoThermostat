@@ -42,7 +42,7 @@ Set and maintain the temperature of a Kamado-style cooker
 - 1N4007 diode
 - 2 x 10KΩ resistor
 - 470Ω resistor
-- 220Ω resistor
+- 220&ohm; resistor
 - WDERAIR WD1232DB 12V fan
 - 2 inch ducting
 - LED
