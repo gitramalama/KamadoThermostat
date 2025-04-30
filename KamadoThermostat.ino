@@ -37,6 +37,7 @@ byte nPulse = 0;                       // pulse counter
 float fahr[PULSES_PER_CYCLE];          // storage of a cycle of temperature measurements
 int fahrSetpoint;                      // set/desired temperature
 float iPID = 0.0;                      // integral term of PID function (accumulates)
+float fahrDelta;                       // temperature delta between set/desired and actual
 float fahrDeltaWas = 0.0;              // storage of prior cycle's temperature delta for use in PID function
 
 void setup() {
@@ -46,6 +47,8 @@ void setup() {
   pinMode(LEDEXTERNAL_PIN, OUTPUT);  // setup of external LED
   pinMode(PB_PIN, INPUT_PULLUP);     // setup of pushbutton
   pinMode(POT_PIN, INPUT);           // setup of potentiometer
+  pinMode(FAN_PIN, OUTPUT);          // setup of fan/MOSFET
+  pinMode(THERMISTOR_PIN, INPUT);    // setup of thermistor
 
   matrix.begin();  // setup of LED matrix
 }
@@ -53,15 +56,13 @@ void setup() {
 void loop() {
   // loop variables
   bool isTimeForPulse = false;                       // flag for doing pulse processing
-  bool isCycleComplete = false;                      // flag for when cycle is complete
+  bool isCycleComplete = false;                      // flag for doing cycle processing
   bool isTimeToBlink = false;                        // flag for blinking/updating lights
   unsigned int lightsInterval = PULSE_INTERVAL * 2;  // LED blink/update rate
   bool statePB;                                      // flag for debouncer
   bool statePBis = digitalRead(PB_PIN);              // pushbutton input
   bool isPBpressed;                                  // flag for pushbutton ON/LATCHED
-  unsigned long frame[3] = { 0, 0, 0 };              // storage LED matrix
-  byte fanDisplayValue;                              // pwm signal to fan adapted to LED matrix
-  float fahrDelta;                                   // temperature delta between set/desired and actual
+  unsigned long frame[3] = { 0, 0, 0 };              // LED matrix
   // lambda function for resetting PID function
   auto resetPID = []() {
     fahrDeltaWas = 0.0;
@@ -90,7 +91,7 @@ void loop() {
   // check... time to blink/update lights?
   if (millis() - timeLastBlink > lightsInterval) {
     // time to blink/update lights
-    isTimeToBlink = true; // flag set
+    isTimeToBlink = true;  // flag set
     // blink builtin LED
     stateLEDBUILTIN ^= 1;
     digitalWrite(LED_BUILTIN, stateLEDBUILTIN);
@@ -100,6 +101,7 @@ void loop() {
   if (nPulse == PULSES_PER_CYCLE) {
     // cycle complete; set flag
     isCycleComplete = true;
+    nPulse = 0;
   }
 
   // check... time for a pulse?
@@ -181,19 +183,19 @@ void loop() {
         If too low, the response to temperature deviations will be sluggish.
         If too high, the system will overshoot.
 
-        Ki is the integral term's constant and will help correct steady-state errors (drift from setpoint).
+        Ki is the integral gain and will help correct steady-state errors (drift from setpoint).
         If too low, the system will be slow to respond to a drift from setpoint.
         If too high, the system will overshoot.
 
-        Kd is the derivative term's constant and will help counteract rapid temperature changes.
+        Kd is the derivative gain and will help counteract rapid temperature changes.
         If too low, the system will anticipate poorly.
         If too high, the system may inadvertently cause a drift.
 
         Tuning response to system performance
-        - Slow response to temperature deviation: increase Kp
-        - Repeated overshoots or oscilattions: decrease Kp or Ki
-        - Slow response to drift: increase Ki
-        - Excessive temperature fluctuation: increase Kd
+        - Slow response to significant temperature deviations: increase Kp
+        - Repeat overshoots: decrease Kp or Ki OR increase Kd
+        - Slow response to prolonged minor temperature deviations: increase Ki
+        - Apparent self-induced drifts from setpoint: decrease Kd
         */
       }
     } else {
@@ -208,7 +210,7 @@ void loop() {
 
       // fan control while establishing temperature setpoint
       pwmFan = 25;
-      analogWrite(FAN_PIN, pwmFan); // send PWM value to fan via MOSFET
+      analogWrite(FAN_PIN, pwmFan);  // send PWM value to fan via MOSFET
     }
 
     // check... cycle complete?
@@ -235,40 +237,165 @@ void loop() {
     nPulse = 0;                       // reset pulse counter
   }
 
-  // update LED matrix
-  fanDisplayValue = pwmFan * 96.0 / 256.0;
-  if (fanDisplayValue < 32) {
-    frame[0] ^= (1 << (31 - fanDisplayValue % 32));
-  } else if (fanDisplayValue < 64) {
-    fanDisplayValue -= 32;
-    frame[1] ^= (1 << (31 - fanDisplayValue % 32));
-  } else {
-    fanDisplayValue -= 64;
-    frame[2] ^= (1 << (31 - fanDisplayValue % 32));
-  }
-  matrix.loadFrame(frame);
-      // store matrix frame for next lights update
-  for (byte i = 0; i < 3; i++) {
-    frameWas[i] = frame[i];
+  // update LED matrix; check... is time to blink/update lights?
+  if (isTimeToBlink) {
+    // time to blink/update lights
+
+    // constants & variables associated with LED matrix
+    const float fahrIndex = pow(15.0, 1.0 / 6.0);  // sets full needle deflection to +/- 15 degF
+    unsigned long setpointIndexOnly[2] = { 0b110000000000000000000000000, 0b11000000000000000000000 };
+    unsigned long matrixOn[2];
+    unsigned long matrixOff[2];
+    unsigned long frame[3] = { 0, 0, 0 };
+    byte fanDisplayValue;  // pwm signal to fan scaled to LED matrix
+
+    // check... auto mode?
+    if (isPBpressed && isDesiredTemperatureSet) {
+      // auto mode; use top rows to indicate temperature relative to setpoint
+      /* loop through finite possibilities of temperature deviation states
+          00: within small tolerance of setpoint
+          01: slight deviation less than setpoint
+          02: modest deviation less than setpoint
+          ...
+          07: exceeds full deflection less than setpoint
+          08: slight deviation greater than setpoint
+          09: modest deviation greater than setpoint
+          ...
+          14: exceeds full deflection greater than setpoint
+      */
+      for (byte i = 0; i < 15; i++) {
+        if (i == 0) {
+          matrixOn[0] = 0b110000000000110000000000110;
+          matrixOn[1] = setpointIndexOnly[1];
+          matrixOff[0] = matrixOn[0];
+          matrixOff[1] = matrixOn[1];
+          if (abs(fahrDelta) < 1.0) {
+            break;
+          }
+        }
+        if (fahrDelta > 0) {
+          if (i == 1) {
+            matrixOn[0] = 0b110000000000100000000000100;
+            matrixOff[0] = matrixOn[0];
+            if (fahrDelta < pow(fahrIndex, i)) {
+              break;
+            }
+          } else if (i < 7) {
+            matrixOn[0] <<= 1;          // bit shift left one bit
+            matrixOn[0] &= ~(1 << 27);  // clear 27th bit
+            matrixOn[0] |= (1 << 25);   // set 25th bit
+            matrixOff[0] = matrixOn[0];
+            if (fahrDelta < pow(fahrIndex, i)) {
+              break;
+            }
+          } else if (i == 7) {
+            matrixOff[0] = setpointIndexOnly[0];
+            if (fahrDelta >= pow(fahrIndex, i - 1)) {
+              break;
+            }
+          }
+        } else if (fahrDelta < 0) {
+          if (i == 8) {
+            matrixOn[0] = 0b110000000000010000000000010;
+            matrixOff[0] = matrixOn[0];
+            if (abs(fahrDelta) < pow(fahrIndex, i - 7)) {
+              break;
+            }
+          } else if (i < 14) {
+            matrixOn[0] >>= 1;          // bit shift right one bit
+            matrixOn[0] &= ~(1 << 24);  // clear 24th bit
+            matrixOn[0] |= (1 << 26);   // set 26th bit
+            matrixOff[0] = matrixOn[0];
+            if (i == 10) {
+              matrixOn[1] = 0b10000000011000000000000000000000;
+              matrixOff[1] = matrixOn[1];
+            } else if (i > 10) {
+              matrixOn[1] >>= 1;          // bit shift right one bit
+              matrixOn[1] &= ~(1 << 20);  // clear 20th bit
+              matrixOn[1] |= (1 << 22);   // set 22nd bit
+              matrixOff[1] = matrixOn[1];
+            }
+            if (abs(fahrDelta) < pow(fahrIndex, i - 7)) {
+              break;
+            }
+          } else if (i == 14) {
+            matrixOff[0] = setpointIndexOnly[0];
+            matrixOff[1] = setpointIndexOnly[1];
+            if (abs(fahrDelta) >= pow(fahrIndex, i - 8)) {
+              break;
+            }
+          }
+        }
+      }
+    } else {
+      // not in auto mode; use top rows to blink x's
+      matrixOn[0] = 0b10001001000101010000101000100000;
+      matrixOn[1] = 0b1000101000010101000100100010000;
+      matrixOff[0] = 0;
+      matrixOff[1] = 0;
+    }
+
+    // check... was frame on?
+    if (frameWas[0] == matrixOn[0] && frameWas[1] == matrixOn[1]) {
+      frame[0] = matrixOff[0];
+      frame[1] = matrixOff[1];
+    } else {
+      frame[0] = matrixOn[0];
+      frame[1] = matrixOn[1];
+    }
+
+    // bottom rows dedicated to fan speed indications
+    fanDisplayValue = pwmFan * 12.0 / 256.0;  // fan speed scaled to LED matrix
+
+    // build frame as a function of fan speed
+    for (byte i = 0; i < fanDisplayValue; i++) {
+      frame[2] ^= (1 << (23 - i));  // toggle (23-i)th bit
+      frame[2] ^= (1 << (11 - i));  // toggle (11-i)th bit
+    }
+    if (pwmFan == 0) {
+      if (frameWas[2] == 0b100000000000100000000000) {
+        frame[2] = 0;
+      } else {
+        frame[2] = 0b100000000000100000000000;
+      }
+    } else if (pwmFan == 255) {
+      if (frameWas[2] == 0b111111111111111111111111) {
+        frame[2] = 0b111111111110111111111110;
+      } else {
+        frame[2] = 0b111111111111111111111111;
+      }
+    }
+
+    // load the matrix for display
+    matrix.loadFrame(frame);
+
+    // store matrix frame for next lights update
+    for (byte i = 0; i < 3; i++) {
+      frameWas[i] = frame[i];
+    }
   }
 
   /*********************************************
   reset timers, counters, flags and functions
   *********************************************/
+
   // check... cycle complete flag set?
   if (isCycleComplete) {
     // cycle complete; reset pulse counter
     nPulse = 0;
   }
+
   // check... pulse flag set?
   if (isTimeForPulse) {
     timeLastPulse = millis();
   }
+
   // check... lights flag set?
   if (isTimeToBlink) {
     // lights flag is set; reset timer
-    timeLastBlink = timeLastPulse; // sync'd to pulse timer b/c lights interval is a multiple of pulse interval
+    timeLastBlink = timeLastPulse;  // sync'd to pulse timer b/c lights interval is a multiple of pulse interval
   }
+
   // reset pushbutton debouncer
   statePBwas = statePBis;
 }
