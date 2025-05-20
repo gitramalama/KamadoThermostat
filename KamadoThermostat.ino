@@ -31,6 +31,7 @@ unsigned long timeLastBlink = 0;
 bool statePBwas;
 unsigned long timeLastDebounce = 0;
 int pwmFan;                            // signal to be sent to fan via MOSFET
+bool isKickstartRequired;              // kickstart required when fan commanded off
 unsigned long frameWas[3];             // storage of LED matrix frame
 bool isDesiredTemperatureSet = false;  // flag for set/desired temperature established
 byte nPulse = 0;                       // pulse counter
@@ -67,6 +68,14 @@ void loop() {
   auto resetPID = []() {
     fahrDeltaWas = 0.0;
     iPID = 0.0;
+  };
+  // lambda function for kickstarting fan from 0
+  auto kickstartFan = [](int pwm) {
+    if (pwm > 24) {
+      analogWrite(FAN_PIN, 255);
+      delay(PULSE_INTERVAL);
+      isKickstartRequired = false;
+    }
   };
 
   // debounce the pushbutton
@@ -172,8 +181,12 @@ void loop() {
         fahrDelta = fahrSetpoint - fahrActual;
         iPID += fahrDelta;
         dPID = fahrDelta - fahrDeltaWas;
-        pwmFan += round(2.0 * fahrDelta + 0.08 * iPID + 10.0 * dPID);
+        pwmFan += round(1.0 * fahrDelta + 0.1 * iPID + 1.0 * dPID);
         pwmFan = constrain(pwmFan, 0, 255);
+        // check... kickstart required?
+        if (isKickstartRequired) {
+          kickstartFan(pwmFan);
+        }
         analogWrite(FAN_PIN, pwmFan);  // send pwm signal to 12V fan via MOSFET
         fahrDeltaWas = fahrDelta;      // store error for next cycle
         /* PID tuning
@@ -210,6 +223,10 @@ void loop() {
 
       // fan control while establishing temperature setpoint
       pwmFan = 25;
+      // check... kickstart required?
+      if (isKickstartRequired) {
+        kickstartFan(pwmFan);
+      }
       analogWrite(FAN_PIN, pwmFan);  // send PWM value to fan via MOSFET
 
       // check... cycle complete?
@@ -229,6 +246,10 @@ void loop() {
 
     // process potentiometer input and send processed PWM value to fan via MOSFET
     pwmFan = map(analogRead(POT_PIN), 0, 1023, 0, 255);
+    // check... kickstart required?
+    if (isKickstartRequired) {
+      kickstartFan(pwmFan);
+    }
     analogWrite(FAN_PIN, pwmFan);
 
     // various resetting associated with Manual Mode
@@ -378,6 +399,11 @@ void loop() {
   /*********************************************
   reset timers, counters, flags and functions
   *********************************************/
+
+  // check... will fan need a kickstart?
+  if (pwmFan == 0) {
+    isKickstartRequired = true;
+  }
 
   // check... cycle complete flag set?
   if (isCycleComplete) {
