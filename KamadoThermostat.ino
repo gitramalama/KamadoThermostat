@@ -129,23 +129,6 @@ void loop() {
     // variables for when pushbutton is pressed
     float fahrActual;
 
-    // do pulse processing; check... time for a pulse?
-    if (isTimeForPulse) {
-      // time for a pulse; process thermistor inputs
-      int thermistorValue = analogRead(THERMISTOR_PIN);  // get thermistor input
-      // calculate fahrenheit
-      float steinhart = SERIES_RESISTOR / ((1023.0 / thermistorValue) - 1);
-      steinhart /= NOMINAL_RESISTANCE;                    // R/Ro
-      steinhart = log(steinhart);                         // ln
-      steinhart /= B_COEFFICIENT;                         // 1/B * ln(R/Ro)
-      steinhart += 1.0 / (NOMINAL_TEMPERATURE + 273.15);  // + (1/To)
-      steinhart = 1.0 / steinhart;                        // Invert
-      steinhart -= 273.15;                                // Convert from Kelvin to Celsius
-      steinhart = (9 * steinhart / 5) + 32;               // Convert Celsius to Fahrenheit
-      fahr[nPulse] = steinhart;                           // send fahrenheit value to appropriate array
-      nPulse++;                                           // increment pulse counter
-    }
-
     // do cycle processing; check... cycle complete?
     if (isCycleComplete) {
       // cycle complete; process array of thermistor inputs
@@ -163,6 +146,23 @@ void loop() {
       } else {
         fahrActual = fahr[PULSES_PER_CYCLE / 2];
       }
+    }
+
+    // do pulse processing; check... time for a pulse?
+    if (isTimeForPulse) {
+      // time for a pulse; process thermistor inputs
+      int thermistorValue = analogRead(THERMISTOR_PIN);  // get thermistor input
+      // calculate fahrenheit
+      float steinhart = SERIES_RESISTOR / ((1023.0 / thermistorValue) - 1);
+      steinhart /= NOMINAL_RESISTANCE;                    // R/Ro
+      steinhart = log(steinhart);                         // ln
+      steinhart /= B_COEFFICIENT;                         // 1/B * ln(R/Ro)
+      steinhart += 1.0 / (NOMINAL_TEMPERATURE + 273.15);  // + (1/To)
+      steinhart = 1.0 / steinhart;                        // Invert
+      steinhart -= 273.15;                                // Convert from Kelvin to Celsius
+      steinhart = (9 * steinhart / 5) + 32;               // Convert Celsius to Fahrenheit
+      fahr[nPulse] = steinhart;                           // send fahrenheit value to appropriate array
+      nPulse++;                                           // increment pulse counter
     }
 
     // check... is desired temperature set?
@@ -231,14 +231,14 @@ void loop() {
         kickstartFan(pwmFan);
       }
       analogWrite(FAN_PIN, pwmFan);  // send PWM value to fan via MOSFET
+    }
 
-      // check... cycle complete?
-      if (isCycleComplete) {
-        // cycle complete; establish setpoint and reset PID function
-        fahrSetpoint = fahrActual;
-        isDesiredTemperatureSet = true;
-        resetPID();
-      }
+    // check... cycle complete?
+    if (isCycleComplete) {
+      // cycle complete; establish setpoint and reset PID function
+      fahrSetpoint = round(fahrActual);
+      isDesiredTemperatureSet = true;
+      resetPID();
     }
   } else {
     // pushbutton is not pressed; MANUAL MODE!
