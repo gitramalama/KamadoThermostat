@@ -20,6 +20,9 @@
 // pushbutton constant
 #define DEBOUNCE_INTERVAL 20  // ms
 
+// fan kickstart constant
+#define KICKSTART_THRESHOLD 25 // approx. 10% of fan duty cycle
+
 // instantiate matrix object
 ArduinoLEDMatrix matrix;
 
@@ -70,8 +73,8 @@ void loop() {
     iPID = 0.0;
   };
   // lambda function for kickstarting fan from 0
-  auto kickstartFan = [](int pwm) {
-    if (pwm > 24) {
+  auto kickstartFan = [](int x) {
+    if (x > KICKSTART_THRESHOLD) {
       analogWrite(FAN_PIN, 255);
       delay(PULSE_INTERVAL);
       isKickstartRequired = false;
@@ -194,7 +197,7 @@ void loop() {
 
         Kp is the proportional gain, meaning the fan will respond directly to temperature deviations.
         If too low, the response to temperature deviations will be sluggish.
-        If too high, the system will overshoot.
+        If too high, the system will overshoot or overreact.
 
         Ki is the integral gain and will help correct steady-state errors (drift from setpoint).
         If too low, the system will be slow to respond to a drift from setpoint.
@@ -202,7 +205,7 @@ void loop() {
 
         Kd is the derivative gain and will help counteract rapid temperature changes.
         If too low, the system will anticipate poorly.
-        If too high, the system may inadvertently cause a drift.
+        If too high, the system may inadvertently cause a drift or overreact to trends.
 
         Tuning response to system performance
         - Slow response to significant temperature deviations: increase Kp
@@ -222,7 +225,7 @@ void loop() {
       }
 
       // fan control while establishing temperature setpoint
-      pwmFan = 25;
+      pwmFan = KICKSTART_THRESHOLD + 1;
       // check... kickstart required?
       if (isKickstartRequired) {
         kickstartFan(pwmFan);
