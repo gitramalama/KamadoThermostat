@@ -20,9 +20,6 @@
 // pushbutton constant
 #define DEBOUNCE_INTERVAL 20  // ms
 
-// fan kickstart constant
-#define KICKSTART_THRESHOLD 25 // approx. 10% of fan duty cycle
-
 // instantiate matrix object
 ArduinoLEDMatrix matrix;
 
@@ -34,7 +31,6 @@ unsigned long timeLastBlink = 0;
 bool statePBwas;
 unsigned long timeLastDebounce = 0;
 int pwmFan;                            // signal to be sent to fan via MOSFET
-bool isKickstartRequired;              // kickstart required when fan commanded off
 unsigned long frameWas[3];             // storage of LED matrix frame
 bool isDesiredTemperatureSet = false;  // flag for set/desired temperature established
 byte nPulse = 0;                       // pulse counter
@@ -71,14 +67,6 @@ void loop() {
   auto resetPID = []() {
     fahrDeltaWas = 0.0;
     iPID = 0.0;
-  };
-  // lambda function for kickstarting fan from 0
-  auto kickstartFan = [](int x) {
-    if (x > KICKSTART_THRESHOLD) {
-      analogWrite(FAN_PIN, 255);
-      delay(PULSE_INTERVAL);
-      isKickstartRequired = false;
-    }
   };
 
   // debounce the pushbutton
@@ -129,6 +117,23 @@ void loop() {
     // variables for when pushbutton is pressed
     float fahrActual;
 
+    // do pulse processing; check... time for a pulse?
+    if (isTimeForPulse) {
+      // time for a pulse; process thermistor inputs
+      int thermistorValue = analogRead(THERMISTOR_PIN);  // get thermistor input
+      // calculate fahrenheit
+      float steinhart = SERIES_RESISTOR / ((1023.0 / thermistorValue) - 1);
+      steinhart /= NOMINAL_RESISTANCE;                    // R/Ro
+      steinhart = log(steinhart);                         // ln
+      steinhart /= B_COEFFICIENT;                         // 1/B * ln(R/Ro)
+      steinhart += 1.0 / (NOMINAL_TEMPERATURE + 273.15);  // + (1/To)
+      steinhart = 1.0 / steinhart;                        // Invert
+      steinhart -= 273.15;                                // Convert from Kelvin to Celsius
+      steinhart = (9 * steinhart / 5) + 32;               // Convert Celsius to Fahrenheit
+      fahr[nPulse] = steinhart;                           // send fahrenheit value to appropriate array
+      nPulse++;                                           // increment pulse counter
+    }
+
     // do cycle processing; check... cycle complete?
     if (isCycleComplete) {
       // cycle complete; process array of thermistor inputs
@@ -146,23 +151,6 @@ void loop() {
       } else {
         fahrActual = fahr[PULSES_PER_CYCLE / 2];
       }
-    }
-
-    // do pulse processing; check... time for a pulse?
-    if (isTimeForPulse) {
-      // time for a pulse; process thermistor inputs
-      int thermistorValue = analogRead(THERMISTOR_PIN);  // get thermistor input
-      // calculate fahrenheit
-      float steinhart = SERIES_RESISTOR / ((1023.0 / thermistorValue) - 1);
-      steinhart /= NOMINAL_RESISTANCE;                    // R/Ro
-      steinhart = log(steinhart);                         // ln
-      steinhart /= B_COEFFICIENT;                         // 1/B * ln(R/Ro)
-      steinhart += 1.0 / (NOMINAL_TEMPERATURE + 273.15);  // + (1/To)
-      steinhart = 1.0 / steinhart;                        // Invert
-      steinhart -= 273.15;                                // Convert from Kelvin to Celsius
-      steinhart = (9 * steinhart / 5) + 32;               // Convert Celsius to Fahrenheit
-      fahr[nPulse] = steinhart;                           // send fahrenheit value to appropriate array
-      nPulse++;                                           // increment pulse counter
     }
 
     // check... is desired temperature set?
@@ -184,16 +172,8 @@ void loop() {
         fahrDelta = fahrSetpoint - fahrActual;
         iPID += fahrDelta;
         dPID = fahrDelta - fahrDeltaWas;
-<<<<<<< HEAD
-        pwmFan += round(1.0 * fahrDelta + 0.1 * iPID + 1.0 * dPID);
-=======
         pwmFan += round(1.0 * fahrDelta + 0.2 * iPID + 1.0 * dPID);
->>>>>>> pre-kickstart
         pwmFan = constrain(pwmFan, 0, 255);
-        // check... kickstart required?
-        if (isKickstartRequired) {
-          kickstartFan(pwmFan);
-        }
         analogWrite(FAN_PIN, pwmFan);  // send pwm signal to 12V fan via MOSFET
         fahrDeltaWas = fahrDelta;      // store error for next cycle
         /* PID tuning
@@ -201,7 +181,7 @@ void loop() {
 
         Kp is the proportional gain, meaning the fan will respond directly to temperature deviations.
         If too low, the response to temperature deviations will be sluggish.
-        If too high, the system will overshoot or overreact.
+        If too high, the system will overshoot.
 
         Ki is the integral gain and will help correct steady-state errors (drift from setpoint).
         If too low, the system will be slow to respond to a drift from setpoint.
@@ -209,7 +189,7 @@ void loop() {
 
         Kd is the derivative gain and will help counteract rapid temperature changes.
         If too low, the system will anticipate poorly.
-        If too high, the system may inadvertently cause a drift or overreact to trends.
+        If too high, the system may inadvertently cause a drift.
 
         Tuning response to system performance
         - Slow response to significant temperature deviations: increase Kp
@@ -229,20 +209,16 @@ void loop() {
       }
 
       // fan control while establishing temperature setpoint
-      pwmFan = KICKSTART_THRESHOLD + 1;
-      // check... kickstart required?
-      if (isKickstartRequired) {
-        kickstartFan(pwmFan);
-      }
+      pwmFan = 25;
       analogWrite(FAN_PIN, pwmFan);  // send PWM value to fan via MOSFET
-    }
 
-    // check... cycle complete?
-    if (isCycleComplete) {
-      // cycle complete; establish setpoint and reset PID function
-      fahrSetpoint = round(fahrActual);
-      isDesiredTemperatureSet = true;
-      resetPID();
+      // check... cycle complete?
+      if (isCycleComplete) {
+        // cycle complete; establish setpoint and reset PID function
+        fahrSetpoint = fahrActual;
+        isDesiredTemperatureSet = true;
+        resetPID();
+      }
     }
   } else {
     // pushbutton is not pressed; MANUAL MODE!
@@ -253,10 +229,6 @@ void loop() {
 
     // process potentiometer input and send processed PWM value to fan via MOSFET
     pwmFan = map(analogRead(POT_PIN), 0, 1023, 0, 255);
-    // check... kickstart required?
-    if (isKickstartRequired) {
-      kickstartFan(pwmFan);
-    }
     analogWrite(FAN_PIN, pwmFan);
 
     // various resetting associated with Manual Mode
@@ -406,11 +378,6 @@ void loop() {
   /*********************************************
   reset timers, counters, flags and functions
   *********************************************/
-
-  // check... will fan need a kickstart?
-  if (pwmFan == 0) {
-    isKickstartRequired = true;
-  }
 
   // check... cycle complete flag set?
   if (isCycleComplete) {
