@@ -6,7 +6,11 @@ Set and maintain the temperature of a Kamado-style cooker
 
 ## 📦 Concept of operation and features
 
+<<<<<<< Updated upstream
 - Concept of operation. The basic control of a Kamado cooker's oven temperature is by making manual adjustments to the top and bottom vents (natural aspiration). This thermostat uses forced induction instead. A 12VDC fan forces air in through the bottom vent to the cooker's furnace. The fan is controlled by a microcontroller via a MOSFET. The thermostat automates maintaining a desired cooking temperature and relieves the user of continually monitoring the cooker's temperature and making vent adjustments.
+=======
+- Concept of operation. A standard Kamado cooker's oven temperature is controlled through manual adjustments to the top and bottom vents (natural aspiration). This thermostat is meant to upgrade a standard Kamado cooker using forced induction. A 12VDC fan forces air in through the bottom vent to the cooker's furnace. The fan is controlled by a microcontroller via a MOSFET. The thermostat automates maintaining a desired cooking temperature and relieves the user of continually monitoring the cooker's temperature and making vent adjustments.
+>>>>>>> Stashed changes
 - Modes of operation
   - Manual Mode. This mode allows the user direct control of the fan so that the oven temperature can be adjusted to the set/desired temperature before putting the thermostat in Auto Mode. Manual Mode also enables changing the set/desired temperature while cooking. While in Manual Mode and monitoring the oven temperature, use a thermometer that is independent of the thermostat, preferably the thermometer that is organic to the cooker.
   - Auto Mode. This mode maintains the set/desired temperature.
