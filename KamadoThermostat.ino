@@ -184,7 +184,11 @@ void loop() {
         fahrDelta = fahrSetpoint - fahrActual;
         iPID += fahrDelta;
         dPID = fahrDelta - fahrDeltaWas;
+<<<<<<< HEAD
         pwmFan += round(1.0 * fahrDelta + 0.1 * iPID + 1.0 * dPID);
+=======
+        pwmFan += round(1.0 * fahrDelta + 0.2 * iPID + 1.0 * dPID);
+>>>>>>> pre-kickstart
         pwmFan = constrain(pwmFan, 0, 255);
         // check... kickstart required?
         if (isKickstartRequired) {
