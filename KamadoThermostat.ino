@@ -172,7 +172,7 @@ void loop() {
         fahrDelta = fahrSetpoint - fahrActual;
         iPID += fahrDelta;
         dPID = fahrDelta - fahrDeltaWas;
-        pwmFan += round(2.0 * fahrDelta + 0.08 * iPID + 10.0 * dPID);
+        pwmFan += round(1.0 * fahrDelta + 0.2 * iPID + 1.0 * dPID);
         pwmFan = constrain(pwmFan, 0, 255);
         analogWrite(FAN_PIN, pwmFan);  // send pwm signal to 12V fan via MOSFET
         fahrDeltaWas = fahrDelta;      // store error for next cycle
